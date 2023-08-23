@@ -1,0 +1,11 @@
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\bin\Debug\SerialPlotter.exe.config
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\bin\Debug\SerialPlotter.exe
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\bin\Debug\SerialPlotter.pdb
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\obj\Debug\SerialPlotter.csproj.AssemblyReference.cache
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\obj\Debug\SerialPlotter.csproj.SuggestedBindingRedirects.cache
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\obj\Debug\SerialPlotter.SerialPlotter.resources
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\obj\Debug\SerialPlotter.Properties.Resources.resources
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\obj\Debug\SerialPlotter.csproj.GenerateResource.cache
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\obj\Debug\SerialPlotter.csproj.CoreCompileInputs.cache
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\obj\Debug\SerialPlotter.exe
+C:\Users\Otavi\Documents\SW\CS\SerialPlotter\obj\Debug\SerialPlotter.pdb
