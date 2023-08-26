@@ -13,21 +13,29 @@ namespace SerialPlotter.DataPacket
 
         static private uint qtyOfDataPackets = 0;
 
+        static private int min_payload_tx_data_bytes = 0;
+        static private int max_payload_tx_data_bytes = 255;
+        static private int min_packet_tx_bytes = 5;
+        static private int max_packet_tx_bytes = (min_packet_tx_bytes + max_payload_tx_data_bytes);
+
+        static private int qty_payload_tx_data_bytes = 25;
+        static private int qty_packet_tx_bytes = (min_packet_tx_bytes + qty_payload_tx_data_bytes);
+
         // END: Static attributes
 
 
         // BEGIN: General attributes
 
-        private int dataPacketLength = 0;
-        private byte payloadDataLength = 0;
-
-        private List<byte> dataPacket;
-        private List<byte> payloadData;
-
         private byte starter_1 = 0x00;
         private byte starter_2 = 0x00;
         private byte command = 0x00;
+        private byte payloadDataLength = 0;
+        private List<byte> payloadData;
         private byte crc8 = 0x00;
+        
+        private List<byte> dataPacket;
+        private int dataPacketLength = 0;
+
         private bool valid = false;
 
         // END: General attributes

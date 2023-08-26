@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Application\Commands.cs" />
+    <Compile Include="Application\Delay.cs" />
     <Compile Include="Application\PayloadData.cs" />
     <Compile Include="DataPacket\DataPacketRx.cs" />
     <Compile Include="GUI\SerialPlotter.cs">

@@ -14,17 +14,35 @@ namespace SerialPlotter
 {
     public partial class SerialPlotter : Form
     {
-
+        DataPacketRx dataPacketRx;
         DataPacketTx dataPacketTx;
+        List<byte> payloadRxDataBytes;
         List<byte> payloadTxDataBytes;
+
+        int counterTimer1 = 0;
+        int counterTimer2 = 0;
+        int counterTimer3 = 0;
+        int counterTimer4 = 0;
+
+        int stateMachine = 0;
+
+        bool decodeCmd = false;
+        byte receivedCmd = 0;
+        byte receivedPayloadDataLength = 0;
+
+        private string adcSerie = "adcSerie";
+
 
         public SerialPlotter()
         {
             InitializeComponent();
             InitializeComboBoxes();
             SetItemsToDisconnectedMode();
+            ClearChart();
 
+            dataPacketRx = new DataPacketRx(0xAA, 0x55);
             dataPacketTx = new DataPacketTx(0xAA, 0x55);
+            payloadRxDataBytes = new List<byte>();
             payloadTxDataBytes = new List<byte>();
         }
 
@@ -83,12 +101,19 @@ namespace SerialPlotter
 
         private void EnableTimer()
         {
-            timer.Enabled = true;
+            timer1.Enabled = true;
+            // timer2.Enabled = true;
         }
 
         private void DisableTimer()
         {
-            timer.Enabled = false;
+            timer1.Enabled = false;
+            // timer2.Enabled = false;
+        }
+
+        private void ClearChart()
+        {
+            lineChart.Series[adcSerie].Points.Clear();
         }
 
         private void ConfigSerialPort()
@@ -206,10 +231,11 @@ namespace SerialPlotter
                 while (serialPort.BytesToRead > 0)
                 {
                     int receivedByte = serialPort.ReadByte();
-                    Console.Write("0x" + receivedByte.ToString("X2") + " ");
-                    // bytesRecebidos.Add(byteRecebido);
+                    if (receivedByte >= 0)
+                    {
+                        dataPacketRx.Append((byte) receivedByte);
+                    }
                 }
-                Console.WriteLine();
             }
             catch (TimeoutException)
             {
@@ -241,7 +267,93 @@ namespace SerialPlotter
 
         private void timer_Tick(object sender, EventArgs e)
         {
+            counterTimer1++;
+            counterTimer2++;
+            counterTimer3++;
+            counterTimer4++;
+        }
 
+        private void timer2_Tick(object sender, EventArgs e)
+        {
+            switch (stateMachine)
+            {
+                case 0:
+                    if (counterTimer1 >= (int) Delay._25ms)
+                    {
+                        dataPacketRx.Decode();
+                        counterTimer1 = 0;
+                    }
+                    stateMachine = 1;
+                    break;
+
+                case 1:
+                    if (dataPacketRx.isValid())
+                    {
+                        //byte receivedCmd = dataPacketRx.GetCommand();
+                        //byte receivedPayloadDataLength = dataPacketRx.GetPayloadDataLength();
+
+                        receivedCmd = dataPacketRx.GetCommand();
+                        receivedPayloadDataLength = dataPacketRx.GetPayloadDataLength();
+
+                        if (receivedPayloadDataLength > 0)
+                        {
+                            payloadRxDataBytes.AddRange(dataPacketRx.GetPayloadData());
+                        }
+
+                        decodeCmd = true;
+                        //dataPacketRx.Clear();
+                    }
+                    stateMachine = 2;
+                    break;
+
+                case 2:
+                    if (decodeCmd == true)
+                    {
+                        /*
+                        Console.WriteLine("receivedCmd: 0x" + receivedCmd.ToString("X2"));
+                        Console.WriteLine("receivedPayloadDataLength: " + receivedPayloadDataLength.ToString());
+
+                        String payloadDataBytesStr = "";
+                        foreach (Byte b in payloadRxDataBytes)
+                        {
+                            payloadDataBytesStr += "0x" + b.ToString("X2") + " ";
+                        }
+
+                        Console.WriteLine("payloadRxDataBytes: " + payloadDataBytesStr);
+                        Console.WriteLine();
+                        */
+
+                        if (receivedCmd == (byte) Commands.AdcReadValue)
+                        {
+                            int adcValue = ((payloadRxDataBytes[0] << 8) + payloadRxDataBytes[1]);
+                            lineChart.Series[adcSerie].Points.Add(adcValue);
+                        }
+
+                        payloadRxDataBytes.Clear();
+                        receivedPayloadDataLength = 0;
+                        receivedCmd = 0;
+                        decodeCmd = false;
+                    }
+                    stateMachine = 3;
+                    break;
+
+                case 3:
+                    if (counterTimer2 >= (int) Delay._250ms)
+                    {
+                        counterTimer2 = 0;
+                    }
+                    stateMachine = 0;
+                    break;
+
+                default:
+                    stateMachine = 0;
+                    break;
+            }
+        }
+
+        private void clearBtn_Click(object sender, EventArgs e)
+        {
+            ClearChart();
         }
     }
 }

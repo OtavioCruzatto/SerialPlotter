@@ -13,6 +13,14 @@ namespace SerialPlotter.DataPacket
 
         static private uint qtyOfDataPackets = 0;
 
+        static private int min_payload_rx_data_bytes = 0;
+        static private int max_payload_rx_data_bytes = 255;
+        static private int min_packet_rx_bytes = 5;
+        static private int max_packet_rx_bytes = (min_packet_rx_bytes + max_payload_rx_data_bytes);
+
+        static private int qty_payload_rx_data_bytes = 25;
+        static private int qty_packet_rx_bytes = (min_packet_rx_bytes + qty_payload_rx_data_bytes);
+
         // END: Static attributes
 
 
@@ -29,6 +37,9 @@ namespace SerialPlotter.DataPacket
         private byte command = 0x00;
         private byte crc8 = 0x00;
         private bool valid = false;
+
+        private bool containsStarterBytes = false;
+        private int starterBytesIndex = 0;
 
         // END: General attributes
 
@@ -56,47 +67,84 @@ namespace SerialPlotter.DataPacket
 
         // BEGIN: General methods
 
-        public void Decode(List<Byte> dataPacket)
+        public void Append(byte newByte)
         {
-            if (dataPacket.Count > 260)
+            this.dataPacket.Add(newByte);
+            this.dataPacketLength++;
+
+            if (this.dataPacket.Count > DataPacketRx.qty_packet_rx_bytes)
             {
-                throw new ArgumentOutOfRangeException("dataPacket", "Argument cannot have more than 260 elements.");
+                this.dataPacket.Clear();
+                this.dataPacketLength = 0;
             }
+        }
 
-            if (dataPacket.Count < 5)
+        public void Decode()
+        {
+            if (this.containsStarterBytes == true)
             {
-                throw new ArgumentOutOfRangeException("dataPacket", "Argument cannot have less than 5 elements.");
-            }
-
-            if (DataPacketRx.CheckCrc(dataPacket) == true)
-            {
-                this.SetStarter1(dataPacket[0]);
-                this.SetStarter2(dataPacket[1]);
-                this.SetCommand(dataPacket[2]);
-                byte receivedPayloadDataLength = dataPacket[3];
-
-                if (receivedPayloadDataLength != 0)
+                if (this.containsStarterBytes == true)
                 {
-                    List<Byte> payloadDataBytesAux = new List<Byte>();
-                    payloadDataBytesAux = dataPacket.GetRange(4, dataPacket.Count - 4 - 1);
-                    this.SetPayloadData(payloadDataBytesAux);
+                    this.SetCommand(this.dataPacket[this.starterBytesIndex + 2]);
+                    this.payloadDataLength = this.dataPacket[this.starterBytesIndex + 3];
+
+                    if (this.payloadDataLength == 0)
+                    {
+                        byte receivedCrc8 = this.dataPacket[this.starterBytesIndex + 4];
+                        this.crc8 = Crc8.CalculatesCrc8(this.dataPacket.GetRange(this.starterBytesIndex, 4));
+
+                        if (this.crc8 == receivedCrc8)
+                        {
+                            this.valid = true;
+                        }
+                    }
+                    else
+                    {
+                        byte receivedCrc8 = this.dataPacket[this.starterBytesIndex + this.payloadDataLength + 4];
+                        this.crc8 = Crc8.CalculatesCrc8(this.dataPacket.GetRange(this.starterBytesIndex, this.payloadDataLength + 4));
+
+                        if (this.crc8 == receivedCrc8)
+                        {
+                            this.SetPayloadData(this.dataPacket.GetRange(this.starterBytesIndex + 4, this.payloadDataLength));
+                            this.valid = true;
+                        }
+                    }
                 }
-
-                this.crc8 = dataPacket.Last();
-                this.dataPacketLength = dataPacket.Count;
-                this.dataPacket = dataPacket;
-
-                if (this.payloadDataLength != receivedPayloadDataLength)
-                {
-                    throw new ArgumentOutOfRangeException("dataPacket", "Quantity of payload data bytes incorrect.");
-                }
-
-                this.valid = true;
             }
             else
             {
-                throw new ApplicationException("Invalid given CRC. Note: CRC8 (poly 0x07)");
+                if (this.dataPacket.Count >= DataPacketRx.min_packet_rx_bytes)
+                {
+                    for (int index = 0; index < this.dataPacketLength; index++)
+                    {
+                        if ((this.dataPacket[index] == this.starter_1) && (this.dataPacket[index + 1] == this.starter_2))
+                        {
+                            this.containsStarterBytes = true;
+                            this.starterBytesIndex = index;
+                            break;
+                        }
+                    }
+
+                    if (this.containsStarterBytes == false)
+                    {
+                        this.dataPacket.Clear();
+                        this.dataPacketLength = 0;
+                    }
+                }
             }
+        }
+
+        public void Clear()
+        {
+            this.valid = false;
+            this.containsStarterBytes = false;
+            this.dataPacketLength = 0;
+            this.payloadDataLength = 0;
+            this.command = 0;
+            this.crc8 = 0;
+            this.starterBytesIndex = 0;
+            this.dataPacket.Clear();
+            this.payloadData.Clear();
         }
 
         // END: General methods
