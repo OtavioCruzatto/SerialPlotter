@@ -16,13 +16,11 @@ namespace SerialPlotter
     {
         DataPacketRx dataPacketRx;
         DataPacketTx dataPacketTx;
-        List<byte> payloadRxDataBytes;
-        List<byte> payloadTxDataBytes;
+        byte[] payloadRxDataBytes;
+        byte[] payloadTxDataBytes;
 
         int counterTimer1 = 0;
         int counterTimer2 = 0;
-        int counterTimer3 = 0;
-        int counterTimer4 = 0;
 
         int stateMachine = 0;
 
@@ -36,14 +34,15 @@ namespace SerialPlotter
         public SerialPlotter()
         {
             InitializeComponent();
-            InitializeComboBoxes();
-            SetItemsToDisconnectedMode();
-            ClearChart();
 
             dataPacketRx = new DataPacketRx(0xAA, 0x55);
             dataPacketTx = new DataPacketTx(0xAA, 0x55);
-            payloadRxDataBytes = new List<byte>();
-            payloadTxDataBytes = new List<byte>();
+            payloadRxDataBytes = new byte[dataPacketRx.GetQtyPayloadRxDataBytes()];
+            payloadTxDataBytes = new byte[dataPacketTx.GetQtyPayloadTxDataBytes()];
+
+            InitializeComboBoxes();
+            SetItemsToDisconnectedMode();
+            ClearChart();
         }
 
         private void InitializeComboBoxes()
@@ -69,6 +68,8 @@ namespace SerialPlotter
 
         private void openBtn_Click(object sender, EventArgs e)
         {
+            dataPacketRx.Clear();
+
             try
             {
                 if (comPortCb.Text != "")
@@ -197,6 +198,8 @@ namespace SerialPlotter
 
         private void closeBtn_Click(object sender, EventArgs e)
         {
+            dataPacketRx.Clear();
+
             if (serialPort.IsOpen)
             {
                 serialPort.Close();
@@ -245,22 +248,20 @@ namespace SerialPlotter
 
         private void startBtn_Click(object sender, EventArgs e)
         {
-            payloadTxDataBytes.Clear();
-            payloadTxDataBytes.Add((byte) DeviceSendData.Enable);
-
+            Array.Clear(payloadTxDataBytes, 0, dataPacketTx.GetQtyPayloadTxDataBytes());
+            payloadTxDataBytes[0] = ((byte) DeviceSendData.Enable);
             dataPacketTx.SetCommand((byte) Commands.SetDeviceSendDataStatus);
-            dataPacketTx.SetPayloadData(payloadTxDataBytes);
+            dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
             dataPacketTx.Mount();
             dataPacketTx.SerialSend(serialPort);
         }
 
         private void stopBtn_Click(object sender, EventArgs e)
         {
-            payloadTxDataBytes.Clear();
-            payloadTxDataBytes.Add((byte) DeviceSendData.Disable);
-
-            dataPacketTx.SetCommand((byte) Commands.SetDeviceSendDataStatus);
-            dataPacketTx.SetPayloadData(payloadTxDataBytes);
+            Array.Clear(payloadTxDataBytes, 0, dataPacketTx.GetQtyPayloadTxDataBytes());
+            payloadTxDataBytes[0] = ((byte)DeviceSendData.Disable);
+            dataPacketTx.SetCommand((byte)Commands.SetDeviceSendDataStatus);
+            dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
             dataPacketTx.Mount();
             dataPacketTx.SerialSend(serialPort);
         }
@@ -269,8 +270,6 @@ namespace SerialPlotter
         {
             counterTimer1++;
             counterTimer2++;
-            counterTimer3++;
-            counterTimer4++;
         }
 
         private void timer2_Tick(object sender, EventArgs e)
@@ -297,11 +296,11 @@ namespace SerialPlotter
 
                         if (receivedPayloadDataLength > 0)
                         {
-                            payloadRxDataBytes.AddRange(dataPacketRx.GetPayloadData());
+                            Array.Copy(dataPacketRx.GetPayloadData(), payloadRxDataBytes, receivedPayloadDataLength);
                         }
 
                         decodeCmd = true;
-                        //dataPacketRx.Clear();
+                        dataPacketRx.Clear();
                     }
                     stateMachine = 2;
                     break;
@@ -314,9 +313,9 @@ namespace SerialPlotter
                         Console.WriteLine("receivedPayloadDataLength: " + receivedPayloadDataLength.ToString());
 
                         String payloadDataBytesStr = "";
-                        foreach (Byte b in payloadRxDataBytes)
+                        for (int i = 0; i < receivedPayloadDataLength; i++)
                         {
-                            payloadDataBytesStr += "0x" + b.ToString("X2") + " ";
+                            payloadDataBytesStr += "0x" + payloadRxDataBytes[i].ToString("X2") + " ";
                         }
 
                         Console.WriteLine("payloadRxDataBytes: " + payloadDataBytesStr);
@@ -329,7 +328,7 @@ namespace SerialPlotter
                             lineChart.Series[adcSerie].Points.Add(adcValue);
                         }
 
-                        payloadRxDataBytes.Clear();
+                        Array.Clear(payloadRxDataBytes, 0, dataPacketRx.GetQtyPayloadRxDataBytes());
                         receivedPayloadDataLength = 0;
                         receivedCmd = 0;
                         decodeCmd = false;

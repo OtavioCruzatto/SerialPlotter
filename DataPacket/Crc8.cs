@@ -33,7 +33,7 @@ namespace SerialPlotter.DataPacket
             0xDE, 0xD9, 0xD0, 0xD7, 0xC2, 0xC5, 0xCC, 0xCB, 0xE6, 0xE1, 0xE8, 0xEF, 0xFA, 0xFD, 0xF4, 0xF3
         };
 
-        public static byte CalculatesCrc8(List<byte> pacoteDeDados)
+        public static byte CalculatesCrc8(byte[] dataPacket, int qtyOfBytes)
         {
             // Console.WriteLine("Bytes para calculo do CRC8:");
             // int teste = 0;
@@ -43,12 +43,12 @@ namespace SerialPlotter.DataPacket
             // }
             // Console.WriteLine();
 
-            int tamanhoDoPacoteDeDados = pacoteDeDados.Count;
+            int tamanhoDoPacoteDeDados = qtyOfBytes;
             byte[] buffer = new byte[tamanhoDoPacoteDeDados];
             int i = 0;
             for (i = 0; i < tamanhoDoPacoteDeDados; i++)
             {
-                buffer[i] = (byte) pacoteDeDados[i];
+                buffer[i] = (byte) dataPacket[i];
             }
 
             return GenCrc(buffer);

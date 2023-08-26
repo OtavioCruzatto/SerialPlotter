@@ -11,32 +11,32 @@ namespace SerialPlotter.DataPacket
     {
         // BEGIN: Static attributes
 
-        static private uint qtyOfDataPackets = 0;
+        static private int qtyOfDataPackets = 0;
 
-        static private int min_payload_tx_data_bytes = 0;
-        static private int max_payload_tx_data_bytes = 255;
-        static private int min_packet_tx_bytes = 5;
-        static private int max_packet_tx_bytes = (min_packet_tx_bytes + max_payload_tx_data_bytes);
+        static private int MIN_PAYLOAD_TX_DATA_BYTES = 0;
+        static private int MAX_PAYLOAD_TX_DATA_BYTES = 255;
+        static private int MIN_PACKET_TX_BYTES = 5;
+        static private int MAX_PACKET_TX_BYTES = (MIN_PACKET_TX_BYTES + MAX_PAYLOAD_TX_DATA_BYTES);
 
-        static private int qty_payload_tx_data_bytes = 25;
-        static private int qty_packet_tx_bytes = (min_packet_tx_bytes + qty_payload_tx_data_bytes);
+        static private int QTY_PAYLOAD_TX_DATA_BYTES = 25;
+        static private int QTY_PACKET_TX_BYTES = (MIN_PACKET_TX_BYTES + QTY_PAYLOAD_TX_DATA_BYTES);
 
         // END: Static attributes
 
 
         // BEGIN: General attributes
 
-        private byte starter_1 = 0x00;
-        private byte starter_2 = 0x00;
-        private byte command = 0x00;
-        private byte payloadDataLength = 0;
-        private List<byte> payloadData;
-        private byte crc8 = 0x00;
+        private byte starter_1;
+        private byte starter_2;
+        private byte command;
+        private byte payloadDataLength;
+        private byte[] payloadData;
+        private byte crc8;
         
-        private List<byte> dataPacket;
-        private int dataPacketLength = 0;
+        private byte[] dataPacket;
+        private int dataPacketLength;
 
-        private bool valid = false;
+        private bool valid;
 
         // END: General attributes
 
@@ -47,11 +47,18 @@ namespace SerialPlotter.DataPacket
         {
             DataPacketTx.qtyOfDataPackets++;
 
-            dataPacket = new List<byte>();
-            payloadData = new List<byte>();
+            this.dataPacket = new byte[DataPacketTx.QTY_PACKET_TX_BYTES];
+            this.payloadData = new byte[DataPacketTx.QTY_PAYLOAD_TX_DATA_BYTES];
 
             this.SetStarter1(starter_1);
             this.SetStarter2(starter_2);
+            this.command = 0x00;
+            this.payloadDataLength = 0;
+            Array.Clear(this.payloadData, 0, DataPacketTx.QTY_PAYLOAD_TX_DATA_BYTES);
+            this.crc8 = 0x00;
+            Array.Clear(this.dataPacket, 0, DataPacketTx.QTY_PACKET_TX_BYTES);
+            this.dataPacketLength = 0;
+            this.valid = false;
         }
 
         ~DataPacketTx()
@@ -81,20 +88,16 @@ namespace SerialPlotter.DataPacket
                 throw new ApplicationException("Attribute 'command' is not initialized.");
             }
 
-            this.dataPacket.Clear();
-            this.dataPacket.Add(this.starter_1);
-            this.dataPacket.Add(this.starter_2);
-            this.dataPacket.Add(this.command);
-            this.dataPacket.Add(this.payloadDataLength);
+            Array.Clear(this.dataPacket, 0, DataPacketTx.QTY_PACKET_TX_BYTES);
 
-            if (this.payloadDataLength != 0)
-            {
-                this.dataPacket.AddRange(this.payloadData);
-            }
-
-            this.crc8 = Crc8.CalculatesCrc8(this.dataPacket);
-            this.dataPacket.Add(this.crc8);
-            this.dataPacketLength = this.dataPacket.Count;
+            this.dataPacket[0] = this.starter_1;
+            this.dataPacket[1] = this.starter_2;
+            this.dataPacket[2] = this.command;
+            this.dataPacket[3] = this.payloadDataLength;
+            Array.Copy(this.payloadData, 0, this.dataPacket, 4, this.payloadDataLength);
+            this.dataPacketLength = this.payloadDataLength + 4 + 1;
+            this.crc8 = Crc8.CalculatesCrc8(this.dataPacket, this.dataPacketLength - 1);
+            this.dataPacket[this.payloadDataLength + 4] = this.crc8;
             this.valid = true;
         }
 
@@ -102,8 +105,7 @@ namespace SerialPlotter.DataPacket
         {
             if (this.valid == true)
             {
-                byte[] disableReceiveAdcReads = this.dataPacket.ToArray();
-                serialPort.Write(disableReceiveAdcReads, 0, disableReceiveAdcReads.Count());
+                serialPort.Write(this.dataPacket, 0, this.dataPacketLength);
             }
         }
 
@@ -142,15 +144,11 @@ namespace SerialPlotter.DataPacket
             this.command = command;
         }
 
-        public void SetPayloadData(List<byte> payloadData)
+        public void SetPayloadData(byte[] payloadData, byte payloadDataLenght)
         {
-            if (payloadData.Count > 255)
-            {
-                throw new ArgumentOutOfRangeException("payloadData", "Argument cannot have more than 255 elements.");
-            }
-
-            this.payloadData = payloadData;
-            this.payloadDataLength = (byte) payloadData.Count;
+            this.valid = false;
+            Array.Copy(payloadData, this.payloadData, payloadDataLenght);
+            this.payloadDataLength = payloadDataLenght;
         }
         
         public byte GetStarter1()
@@ -168,7 +166,7 @@ namespace SerialPlotter.DataPacket
             return this.command;
         }
 
-        public List<byte> GetPayloadData()
+        public byte[] GetPayloadData()
         {
             return this.payloadData;
         }
@@ -178,7 +176,7 @@ namespace SerialPlotter.DataPacket
             return this.payloadDataLength;
         }
 
-        public List<byte> GetDataPacket()
+        public byte[] GetDataPacket()
         {
             return this.dataPacket;
         }
@@ -198,11 +196,16 @@ namespace SerialPlotter.DataPacket
             return this.crc8;
         }
 
-        public uint GetQtyOfPackets()
+        public int GetQtyOfPackets()
         {
             return DataPacketTx.qtyOfDataPackets;
         }
 
+        public int GetQtyPayloadTxDataBytes()
+        {
+            return DataPacketTx.QTY_PAYLOAD_TX_DATA_BYTES;
+        }
+        
         // END: Getters and setters methods
     }
 }

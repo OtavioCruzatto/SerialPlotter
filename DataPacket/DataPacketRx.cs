@@ -13,33 +13,34 @@ namespace SerialPlotter.DataPacket
 
         static private uint qtyOfDataPackets = 0;
 
-        static private int min_payload_rx_data_bytes = 0;
-        static private int max_payload_rx_data_bytes = 255;
-        static private int min_packet_rx_bytes = 5;
-        static private int max_packet_rx_bytes = (min_packet_rx_bytes + max_payload_rx_data_bytes);
+        static private int MIN_PAYLOAD_RX_DATA_BYTES = 0;
+        static private int MAX_PAYLOAD_RX_DATA_BYTES = 255;
+        static private int MIN_PACKET_RX_BYTES = 5;
+        static private int MAX_PACKET_RX_BYTES = (MIN_PACKET_RX_BYTES + MAX_PAYLOAD_RX_DATA_BYTES);
 
-        static private int qty_payload_rx_data_bytes = 25;
-        static private int qty_packet_rx_bytes = (min_packet_rx_bytes + qty_payload_rx_data_bytes);
+        static private int QTY_PAYLOAD_RX_DATA_BYTES = 25;
+        static private int QTY_PACKET_RX_BYTES = (MIN_PACKET_RX_BYTES + QTY_PAYLOAD_RX_DATA_BYTES);
 
         // END: Static attributes
 
 
         // BEGIN: General attributes
 
-        private int dataPacketLength = 0;
-        private byte payloadDataLength = 0;
+        private byte starter_1;
+        private byte starter_2;
+        private byte command;
+        private byte payloadDataLength;
+        private byte[] payloadData;
+        private byte crc8;
 
-        private List<byte> dataPacket;
-        private List<byte> payloadData;
-
-        private byte starter_1 = 0x00;
-        private byte starter_2 = 0x00;
-        private byte command = 0x00;
-        private byte crc8 = 0x00;
-        private bool valid = false;
-
+        private byte[] dataPacket;
+        private int dataPacketLength;
+        
+        private int currentRxByteIndex = 0;
         private bool containsStarterBytes = false;
         private int starterBytesIndex = 0;
+
+        private bool valid = false;
 
         // END: General attributes
 
@@ -48,13 +49,23 @@ namespace SerialPlotter.DataPacket
 
         public DataPacketRx(byte starter_1, byte starter_2)
         {
-            DataPacketRx.qtyOfDataPackets++;
-
-            dataPacket = new List<byte>();
-            payloadData = new List<byte>();
+            this.dataPacket = new byte[DataPacketRx.QTY_PACKET_RX_BYTES];
+            this.payloadData = new byte[DataPacketRx.QTY_PAYLOAD_RX_DATA_BYTES];
 
             this.SetStarter1(starter_1);
             this.SetStarter2(starter_2);
+            this.command = 0x00;
+            this.payloadDataLength = 0;
+            Array.Clear(this.payloadData, 0, DataPacketRx.QTY_PAYLOAD_RX_DATA_BYTES);
+            this.crc8 = 0x00;
+            Array.Clear(this.dataPacket, 0, DataPacketRx.QTY_PACKET_RX_BYTES);
+            this.dataPacketLength = 0;
+            this.currentRxByteIndex = 0;
+            this.containsStarterBytes = false;
+            this.starterBytesIndex = 0;
+            this.valid = false;
+
+            DataPacketRx.qtyOfDataPackets++;
         }
 
         ~DataPacketRx()
@@ -69,12 +80,14 @@ namespace SerialPlotter.DataPacket
 
         public void Append(byte newByte)
         {
-            this.dataPacket.Add(newByte);
+            this.dataPacket[this.currentRxByteIndex] = newByte;
+            this.currentRxByteIndex++;
             this.dataPacketLength++;
 
-            if (this.dataPacket.Count > DataPacketRx.qty_packet_rx_bytes)
+            if (this.currentRxByteIndex >= DataPacketRx.QTY_PACKET_RX_BYTES)
             {
-                this.dataPacket.Clear();
+                this.Clear();
+                this.currentRxByteIndex = 0;
                 this.dataPacketLength = 0;
             }
         }
@@ -83,37 +96,40 @@ namespace SerialPlotter.DataPacket
         {
             if (this.containsStarterBytes == true)
             {
-                if (this.containsStarterBytes == true)
+                this.SetCommand(this.dataPacket[this.starterBytesIndex + 2]);
+                this.payloadDataLength = this.dataPacket[this.starterBytesIndex + 3];
+
+                if (this.payloadDataLength == 0)
                 {
-                    this.SetCommand(this.dataPacket[this.starterBytesIndex + 2]);
-                    this.payloadDataLength = this.dataPacket[this.starterBytesIndex + 3];
+                    byte receivedCrc8 = this.dataPacket[this.starterBytesIndex + 4];
+                    byte[] dataPacketWithoutCrc8 = new byte[DataPacketRx.QTY_PACKET_RX_BYTES];
+                    Array.Copy(this.dataPacket, this.starterBytesIndex, dataPacketWithoutCrc8, 0, 4);
+                    this.crc8 = Crc8.CalculatesCrc8(dataPacketWithoutCrc8, 4);
 
-                    if (this.payloadDataLength == 0)
+                    if (this.crc8 == receivedCrc8)
                     {
-                        byte receivedCrc8 = this.dataPacket[this.starterBytesIndex + 4];
-                        this.crc8 = Crc8.CalculatesCrc8(this.dataPacket.GetRange(this.starterBytesIndex, 4));
-
-                        if (this.crc8 == receivedCrc8)
-                        {
-                            this.valid = true;
-                        }
+                        this.currentRxByteIndex = 0;
+                        this.valid = true;
                     }
-                    else
-                    {
-                        byte receivedCrc8 = this.dataPacket[this.starterBytesIndex + this.payloadDataLength + 4];
-                        this.crc8 = Crc8.CalculatesCrc8(this.dataPacket.GetRange(this.starterBytesIndex, this.payloadDataLength + 4));
+                }
+                else
+                {
+                    byte receivedCrc8 = this.dataPacket[this.starterBytesIndex + this.payloadDataLength + 4];
+                    byte[] dataPacketWithoutCrc8 = new byte[DataPacketRx.QTY_PACKET_RX_BYTES];
+                    Array.Copy(this.dataPacket, this.starterBytesIndex, dataPacketWithoutCrc8, 0, this.payloadDataLength + 4);
+                    this.crc8 = Crc8.CalculatesCrc8(dataPacketWithoutCrc8, this.payloadDataLength + 4);
 
-                        if (this.crc8 == receivedCrc8)
-                        {
-                            this.SetPayloadData(this.dataPacket.GetRange(this.starterBytesIndex + 4, this.payloadDataLength));
-                            this.valid = true;
-                        }
+                    if (this.crc8 == receivedCrc8)
+                    {
+                        this.SetPayloadData();
+                        this.currentRxByteIndex = 0;
+                        this.valid = true;
                     }
                 }
             }
             else
             {
-                if (this.dataPacket.Count >= DataPacketRx.min_packet_rx_bytes)
+                if (this.dataPacketLength >= DataPacketRx.MIN_PACKET_RX_BYTES)
                 {
                     for (int index = 0; index < this.dataPacketLength; index++)
                     {
@@ -127,8 +143,7 @@ namespace SerialPlotter.DataPacket
 
                     if (this.containsStarterBytes == false)
                     {
-                        this.dataPacket.Clear();
-                        this.dataPacketLength = 0;
+                        this.Clear();
                     }
                 }
             }
@@ -138,26 +153,20 @@ namespace SerialPlotter.DataPacket
         {
             this.valid = false;
             this.containsStarterBytes = false;
+            this.currentRxByteIndex = 0;
             this.dataPacketLength = 0;
             this.payloadDataLength = 0;
             this.command = 0;
             this.crc8 = 0;
             this.starterBytesIndex = 0;
-            this.dataPacket.Clear();
-            this.payloadData.Clear();
+            Array.Clear(this.payloadData, 0, DataPacketRx.QTY_PAYLOAD_RX_DATA_BYTES);
+            Array.Clear(this.dataPacket, 0, DataPacketRx.QTY_PACKET_RX_BYTES);
         }
 
         // END: General methods
 
 
         // BEGIN: Static methods
-
-        private static bool CheckCrc(List<Byte> dataPacket)
-        {
-            Byte receivedCrc8 = dataPacket.Last();
-            Byte calculatedCrc8 = Crc8.CalculatesCrc8(dataPacket.GetRange(0, dataPacket.Count - 1));
-            return receivedCrc8 == calculatedCrc8;
-        }
 
         // END: Static methods
 
@@ -184,7 +193,7 @@ namespace SerialPlotter.DataPacket
             this.starter_2 = starter_2;
         }
 
-        public void SetCommand(byte command)
+        private void SetCommand(byte command)
         {
             if ((command < 0x01) || (command > 0xfe))
             {
@@ -194,15 +203,15 @@ namespace SerialPlotter.DataPacket
             this.command = command;
         }
 
-        public void SetPayloadData(List<byte> payloadData)
+        private void SetPayloadData()
         {
-            if (payloadData.Count > 255)
+            if (this.payloadDataLength > DataPacketRx.QTY_PAYLOAD_RX_DATA_BYTES)
             {
-                throw new ArgumentOutOfRangeException("payloadData", "Argument cannot have more than 255 elements.");
+                throw new ArgumentOutOfRangeException("payloadData", "Argument cannot have more than 'QTY_PAYLOAD_RX_DATA_BYTES' elements.");
             }
 
-            this.payloadData = payloadData;
-            this.payloadDataLength = (byte) payloadData.Count;
+            this.valid = false;
+            Array.Copy(this.dataPacket, this.starterBytesIndex + 4, this.payloadData, 0, this.payloadDataLength);
         }
         
         public byte GetStarter1()
@@ -220,7 +229,7 @@ namespace SerialPlotter.DataPacket
             return this.command;
         }
 
-        public List<byte> GetPayloadData()
+        public byte[] GetPayloadData()
         {
             return this.payloadData;
         }
@@ -230,7 +239,7 @@ namespace SerialPlotter.DataPacket
             return this.payloadDataLength;
         }
 
-        public List<byte> GetDataPacket()
+        public byte[] GetDataPacket()
         {
             return this.dataPacket;
         }
@@ -253,6 +262,11 @@ namespace SerialPlotter.DataPacket
         public uint GetQtyOfPackets()
         {
             return DataPacketRx.qtyOfDataPackets;
+        }
+
+        public int GetQtyPayloadRxDataBytes()
+        {
+            return DataPacketRx.QTY_PAYLOAD_RX_DATA_BYTES;
         }
 
         // END: Getters and setters methods
