@@ -112,7 +112,7 @@ namespace SerialPlotter.DataPacket
                         this.valid = true;
                     }
                 }
-                else
+                else if (this.payloadDataLength <= DataPacketRx.QTY_PAYLOAD_RX_DATA_BYTES)
                 {
                     byte receivedCrc8 = this.dataPacket[this.starterBytesIndex + this.payloadDataLength + 4];
                     byte[] dataPacketWithoutCrc8 = new byte[DataPacketRx.QTY_PACKET_RX_BYTES];
@@ -125,6 +125,10 @@ namespace SerialPlotter.DataPacket
                         this.currentRxByteIndex = 0;
                         this.valid = true;
                     }
+                }
+                else
+                {
+                    this.Clear();
                 }
             }
             else

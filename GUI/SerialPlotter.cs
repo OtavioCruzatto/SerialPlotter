@@ -20,7 +20,6 @@ namespace SerialPlotter
         byte[] payloadTxDataBytes;
 
         int counterTimer1 = 0;
-        int counterTimer2 = 0;
 
         int stateMachine = 0;
 
@@ -30,6 +29,7 @@ namespace SerialPlotter
 
         private string adcSerie = "adcSerie";
 
+        int x = 0;
 
         public SerialPlotter()
         {
@@ -103,18 +103,17 @@ namespace SerialPlotter
         private void EnableTimer()
         {
             timer1.Enabled = true;
-            // timer2.Enabled = true;
         }
 
         private void DisableTimer()
         {
             timer1.Enabled = false;
-            // timer2.Enabled = false;
         }
 
         private void ClearChart()
         {
             lineChart.Series[adcSerie].Points.Clear();
+            lineChart.Series[adcSerie].Points.AddXY(-1, 0);
         }
 
         private void ConfigSerialPort()
@@ -236,21 +235,21 @@ namespace SerialPlotter
                     int receivedByte = serialPort.ReadByte();
                     if (receivedByte >= 0)
                     {
-                        dataPacketRx.Append((byte) receivedByte);
+                        dataPacketRx.Append((byte)receivedByte);
                     }
                 }
             }
             catch (TimeoutException)
             {
-                MessageBox.Show("TimeoutException", "Houve uma excessão");
+                MessageBox.Show("TimeoutException", "There was an exception.");
             }
         }
 
         private void startBtn_Click(object sender, EventArgs e)
         {
             Array.Clear(payloadTxDataBytes, 0, dataPacketTx.GetQtyPayloadTxDataBytes());
-            payloadTxDataBytes[0] = ((byte) DeviceSendData.Enable);
-            dataPacketTx.SetCommand((byte) Commands.SetDeviceSendDataStatus);
+            payloadTxDataBytes[0] = ((byte)DeviceSendData.Enable);
+            dataPacketTx.SetCommand((byte)Commands.SetDeviceSendDataStatus);
             dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
             dataPacketTx.Mount();
             dataPacketTx.SerialSend(serialPort);
@@ -269,7 +268,6 @@ namespace SerialPlotter
         private void timer_Tick(object sender, EventArgs e)
         {
             counterTimer1++;
-            counterTimer2++;
         }
 
         private void timer2_Tick(object sender, EventArgs e)
@@ -308,38 +306,25 @@ namespace SerialPlotter
                 case 2:
                     if (decodeCmd == true)
                     {
-                        /*
-                        Console.WriteLine("receivedCmd: 0x" + receivedCmd.ToString("X2"));
-                        Console.WriteLine("receivedPayloadDataLength: " + receivedPayloadDataLength.ToString());
-
-                        String payloadDataBytesStr = "";
-                        for (int i = 0; i < receivedPayloadDataLength; i++)
-                        {
-                            payloadDataBytesStr += "0x" + payloadRxDataBytes[i].ToString("X2") + " ";
-                        }
-
-                        Console.WriteLine("payloadRxDataBytes: " + payloadDataBytesStr);
-                        Console.WriteLine();
-                        */
 
                         if (receivedCmd == (byte) Commands.AdcReadValue)
                         {
                             int adcValue = ((payloadRxDataBytes[0] << 8) + payloadRxDataBytes[1]);
-                            lineChart.Series[adcSerie].Points.Add(adcValue);
+                            lineChart.Series[adcSerie].Points.AddXY(x, adcValue);
+                            x++;
+
+                            if (x > 500)
+                            {
+                                ClearChart();
+                                x = 0;
+                            }
+                            //lineChart.Series[adcSerie].Points.Add(adcValue);
                         }
 
                         Array.Clear(payloadRxDataBytes, 0, dataPacketRx.GetQtyPayloadRxDataBytes());
                         receivedPayloadDataLength = 0;
                         receivedCmd = 0;
                         decodeCmd = false;
-                    }
-                    stateMachine = 3;
-                    break;
-
-                case 3:
-                    if (counterTimer2 >= (int) Delay._250ms)
-                    {
-                        counterTimer2 = 0;
                     }
                     stateMachine = 0;
                     break;
@@ -353,6 +338,7 @@ namespace SerialPlotter
         private void clearBtn_Click(object sender, EventArgs e)
         {
             ClearChart();
+            x = 0;
         }
     }
 }
