@@ -59,7 +59,7 @@ namespace SerialPlotter
 
         private void SetPredefinedItems()
         {
-            baudrateCb.SelectedItem = "19200";
+            baudrateCb.SelectedItem = "115200";
             dataBitsCb.SelectedItem = "8 bits";
             parityCb.SelectedItem = "None";
             stopBitsCb.SelectedItem = "1 bit";
