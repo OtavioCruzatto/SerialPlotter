@@ -16,8 +16,6 @@ namespace SerialPlotter
     public partial class SerialPlotter : Form
     {
         DataPacketRx dataPacketRx;
-        DataPacketTx dataPacketTx;
-        byte[] payloadTxDataBytes;
 
         int counterTimer1 = 0;
         int stateMachine = 0;
@@ -28,8 +26,6 @@ namespace SerialPlotter
             InitializeComponent();
 
             dataPacketRx = new DataPacketRx(0xAA, 0x55);
-            dataPacketTx = new DataPacketTx(0xAA, 0x55);
-            payloadTxDataBytes = new byte[dataPacketTx.GetQtyPayloadTxDataBytes()];
 
             serialPlotterApp = new App.App();
             serialPlotterApp.SetLineChart(lineChart);
@@ -235,22 +231,12 @@ namespace SerialPlotter
 
         private void startBtn_Click(object sender, EventArgs e)
         {
-            Array.Clear(payloadTxDataBytes, 0, dataPacketTx.GetQtyPayloadTxDataBytes());
-            payloadTxDataBytes[0] = ((byte)DeviceSendData.Enable);
-            dataPacketTx.SetCommand((byte)Commands.SetDeviceSendDataStatus);
-            dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
-            dataPacketTx.Mount();
-            dataPacketTx.SerialSend(serialPort);
+            serialPlotterApp.StartDataAquisitionSendCommand(serialPort);
         }
 
         private void stopBtn_Click(object sender, EventArgs e)
         {
-            Array.Clear(payloadTxDataBytes, 0, dataPacketTx.GetQtyPayloadTxDataBytes());
-            payloadTxDataBytes[0] = ((byte)DeviceSendData.Disable);
-            dataPacketTx.SetCommand((byte)Commands.SetDeviceSendDataStatus);
-            dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
-            dataPacketTx.Mount();
-            dataPacketTx.SerialSend(serialPort);
+            serialPlotterApp.StopDataAquisitionSendCommand(serialPort);
         }
 
         private void timer_Tick(object sender, EventArgs e)

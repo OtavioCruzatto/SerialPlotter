@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms.DataVisualization.Charting;
+using SerialPlotter.DataPacket;
+using System.IO.Ports;
 
 
 namespace SerialPlotter.App
@@ -23,6 +25,10 @@ namespace SerialPlotter.App
         Chart lineChart;
         private string adcSerie = "adcSerie";
 
+
+        DataPacketTx dataPacketTx;
+        byte[] payloadTxDataBytes;
+
         public App()
         {
             this.data = new byte[App.QTY_DATA_BYTES];
@@ -34,6 +40,9 @@ namespace SerialPlotter.App
 
             this.adcValue = 0;
             this.pointsCounter = 0;
+
+            this.dataPacketTx = new DataPacketTx(0xAA, 0x55);
+            this.payloadTxDataBytes = new byte[this.dataPacketTx.GetQtyPayloadTxDataBytes()];
         }
 
         public void DecodeCommand()
@@ -53,6 +62,26 @@ namespace SerialPlotter.App
                     this.lineChart.Series[adcSerie].Points.AddXY(this.pointsCounter, this.adcValue);
                     break;
             }
+        }
+
+        public void StartDataAquisitionSendCommand(SerialPort serialPort)
+        {
+            Array.Clear(this.payloadTxDataBytes, 0, this.dataPacketTx.GetQtyPayloadTxDataBytes());
+            this.payloadTxDataBytes[0] = ((byte) DeviceSendData.Enable);
+            this.dataPacketTx.SetCommand((byte) Commands.SetDeviceSendDataStatus);
+            this.dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
+            this.dataPacketTx.Mount();
+            this.dataPacketTx.SerialSend(serialPort);
+        }
+
+        public void StopDataAquisitionSendCommand(SerialPort serialPort)
+        {
+            Array.Clear(this.payloadTxDataBytes, 0, this.dataPacketTx.GetQtyPayloadTxDataBytes());
+            this.payloadTxDataBytes[0] = ((byte) DeviceSendData.Disable);
+            this.dataPacketTx.SetCommand((byte) Commands.SetDeviceSendDataStatus);
+            this.dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
+            this.dataPacketTx.Mount();
+            this.dataPacketTx.SerialSend(serialPort);
         }
 
         public void ClearChart()
