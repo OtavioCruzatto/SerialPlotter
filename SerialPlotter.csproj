@@ -47,9 +47,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Application\Commands.cs" />
-    <Compile Include="Application\Delay.cs" />
-    <Compile Include="Application\PayloadData.cs" />
+    <Compile Include="App\App.cs" />
+    <Compile Include="App\Commands.cs" />
+    <Compile Include="App\Delay.cs" />
+    <Compile Include="App\PayloadData.cs" />
     <Compile Include="DataPacket\DataPacketRx.cs" />
     <Compile Include="GUI\SerialPlotter.cs">
       <SubType>Form</SubType>

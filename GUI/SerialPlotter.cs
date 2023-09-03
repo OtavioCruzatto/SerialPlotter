@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO.Ports;
 using SerialPlotter.DataPacket;
+using SerialPlotter.App;
 
 namespace SerialPlotter
 {
@@ -16,20 +17,11 @@ namespace SerialPlotter
     {
         DataPacketRx dataPacketRx;
         DataPacketTx dataPacketTx;
-        byte[] payloadRxDataBytes;
         byte[] payloadTxDataBytes;
 
         int counterTimer1 = 0;
-
         int stateMachine = 0;
-
-        bool decodeCmd = false;
-        byte receivedCmd = 0;
-        byte receivedPayloadDataLength = 0;
-
-        private string adcSerie = "adcSerie";
-
-        int x = 0;
+        App.App serialPlotterApp;
 
         public SerialPlotter()
         {
@@ -37,12 +29,14 @@ namespace SerialPlotter
 
             dataPacketRx = new DataPacketRx(0xAA, 0x55);
             dataPacketTx = new DataPacketTx(0xAA, 0x55);
-            payloadRxDataBytes = new byte[dataPacketRx.GetQtyPayloadRxDataBytes()];
             payloadTxDataBytes = new byte[dataPacketTx.GetQtyPayloadTxDataBytes()];
+
+            serialPlotterApp = new App.App();
+            serialPlotterApp.SetLineChart(lineChart);
 
             InitializeComboBoxes();
             SetItemsToDisconnectedMode();
-            ClearChart();
+            serialPlotterApp.ClearChart();
         }
 
         private void InitializeComboBoxes()
@@ -108,12 +102,6 @@ namespace SerialPlotter
         private void DisableTimer()
         {
             timer1.Enabled = false;
-        }
-
-        private void ClearChart()
-        {
-            lineChart.Series[adcSerie].Points.Clear();
-            lineChart.Series[adcSerie].Points.AddXY(-1, 0);
         }
 
         private void ConfigSerialPort()
@@ -286,45 +274,26 @@ namespace SerialPlotter
                 case 1:
                     if (dataPacketRx.isValid())
                     {
-                        //byte receivedCmd = dataPacketRx.GetCommand();
-                        //byte receivedPayloadDataLength = dataPacketRx.GetPayloadDataLength();
-
-                        receivedCmd = dataPacketRx.GetCommand();
-                        receivedPayloadDataLength = dataPacketRx.GetPayloadDataLength();
+                        byte receivedCmd = dataPacketRx.GetCommand();
+                        byte receivedPayloadDataLength = dataPacketRx.GetPayloadDataLength();
 
                         if (receivedPayloadDataLength > 0)
                         {
-                            Array.Copy(dataPacketRx.GetPayloadData(), payloadRxDataBytes, receivedPayloadDataLength);
+                            serialPlotterApp.SetData(dataPacketRx.GetPayloadData(), receivedPayloadDataLength);
                         }
 
-                        decodeCmd = true;
+                        serialPlotterApp.SetCommand(receivedCmd);
+                        serialPlotterApp.SetDecodeCommandStatus(true);
                         dataPacketRx.Clear();
                     }
                     stateMachine = 2;
                     break;
 
                 case 2:
-                    if (decodeCmd == true)
+                    if (serialPlotterApp.GetDecodeCommandStatus() == true)
                     {
-
-                        if (receivedCmd == (byte) Commands.AdcReadValue)
-                        {
-                            int adcValue = ((payloadRxDataBytes[0] << 8) + payloadRxDataBytes[1]);
-                            lineChart.Series[adcSerie].Points.AddXY(x, adcValue);
-                            x++;
-
-                            if (x > 500)
-                            {
-                                ClearChart();
-                                x = 0;
-                            }
-                            //lineChart.Series[adcSerie].Points.Add(adcValue);
-                        }
-
-                        Array.Clear(payloadRxDataBytes, 0, dataPacketRx.GetQtyPayloadRxDataBytes());
-                        receivedPayloadDataLength = 0;
-                        receivedCmd = 0;
-                        decodeCmd = false;
+                        serialPlotterApp.DecodeCommand();
+                        serialPlotterApp.SetDecodeCommandStatus(false);
                     }
                     stateMachine = 0;
                     break;
@@ -337,8 +306,8 @@ namespace SerialPlotter
 
         private void clearBtn_Click(object sender, EventArgs e)
         {
-            ClearChart();
-            x = 0;
+            serialPlotterApp.ClearChart();
+            serialPlotterApp.ResetPointsCounter();
         }
     }
 }
