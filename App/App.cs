@@ -12,45 +12,55 @@ namespace SerialPlotter.App
 {
     public class App
     {
-        static private int QTY_DATA_BYTES = 25;
+        private byte receivedCommand;
+        private bool decodeReceivedCommand;
 
-        byte command;
-        bool decodeCommandStatus;
-        byte[] data;
-        byte dataLength;
+        private int adcValue;
+        private int pointsCounter;
 
-        int adcValue;
-        int pointsCounter;
-
-        Chart lineChart;
+        private SerialPort serialPort;
+        private Chart lineChart;
         private string adcSerie = "adcSerie";
 
+        private int stateMachine;
+        private int counterTimer1;
 
-        DataPacketTx dataPacketTx;
-        byte[] payloadTxDataBytes;
+        private DataPacketTx dataPacketTx;
+        private DataPacketRx dataPacketRx;
+        private byte[] payloadTxDataBytes;
+        private byte[] payloadRxDataBytes;
 
         public App()
         {
-            this.data = new byte[App.QTY_DATA_BYTES];
+            this.receivedCommand = 0;
+            this.decodeReceivedCommand = false;
 
-            this.command = 0;
-            this.decodeCommandStatus = false;
-            Array.Clear(this.data, 0, App.QTY_DATA_BYTES);
-            this.dataLength = 0;
+            this.counterTimer1 = 0;
+            this.stateMachine = 0;
 
             this.adcValue = 0;
             this.pointsCounter = 0;
 
             this.dataPacketTx = new DataPacketTx(0xAA, 0x55);
+            this.dataPacketRx = new DataPacketRx(0xAA, 0x55);
             this.payloadTxDataBytes = new byte[this.dataPacketTx.GetQtyPayloadTxDataBytes()];
+            this.payloadRxDataBytes = new byte[this.dataPacketRx.GetQtyPayloadRxDataBytes()];
+
+            Array.Clear(this.payloadTxDataBytes, 0, this.dataPacketTx.GetQtyPayloadTxDataBytes());
+            Array.Clear(this.payloadRxDataBytes, 0, this.dataPacketRx.GetQtyPayloadRxDataBytes());
         }
 
-        public void DecodeCommand()
+        public void AppendNewByte(int newByte)
         {
-            switch (this.command)
+            this.dataPacketRx.Append((byte) newByte);
+        }
+
+        public void DecodeAndExecuteCommand()
+        {
+            switch (this.receivedCommand)
             {
                 case ((byte) Commands.AdcReadValue):
-                    this.adcValue = ((this.data[0] << 8) + this.data[1]);
+                    this.adcValue = ((this.payloadRxDataBytes[0] << 8) + this.payloadRxDataBytes[1]);
                     this.pointsCounter++;
 
                     if (this.pointsCounter > 500)
@@ -64,24 +74,29 @@ namespace SerialPlotter.App
             }
         }
 
-        public void StartDataAquisitionSendCommand(SerialPort serialPort)
+        public void ClearDataPacketRx()
+        {
+            this.dataPacketRx.Clear();
+        }
+
+        public void StartDataAquisitionSendCommand()
         {
             Array.Clear(this.payloadTxDataBytes, 0, this.dataPacketTx.GetQtyPayloadTxDataBytes());
             this.payloadTxDataBytes[0] = ((byte) DeviceSendData.Enable);
             this.dataPacketTx.SetCommand((byte) Commands.SetDeviceSendDataStatus);
             this.dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
             this.dataPacketTx.Mount();
-            this.dataPacketTx.SerialSend(serialPort);
+            this.dataPacketTx.SerialSend(this.serialPort);
         }
 
-        public void StopDataAquisitionSendCommand(SerialPort serialPort)
+        public void StopDataAquisitionSendCommand()
         {
             Array.Clear(this.payloadTxDataBytes, 0, this.dataPacketTx.GetQtyPayloadTxDataBytes());
             this.payloadTxDataBytes[0] = ((byte) DeviceSendData.Disable);
             this.dataPacketTx.SetCommand((byte) Commands.SetDeviceSendDataStatus);
             this.dataPacketTx.SetPayloadData(payloadTxDataBytes, 1);
             this.dataPacketTx.Mount();
-            this.dataPacketTx.SerialSend(serialPort);
+            this.dataPacketTx.SerialSend(this.serialPort);
         }
 
         public void ClearChart()
@@ -90,43 +105,62 @@ namespace SerialPlotter.App
             lineChart.Series[adcSerie].Points.AddXY(-1, 0);
         }
 
-        public void SetCommand(byte command)
+        public void IncrementCounterTimer1()
         {
-            this.command = command;
+            this.counterTimer1++;
         }
 
-        public byte GetCommand()
+        public void ExecuteStateMachine()
         {
-            return this.command;
-        }
-
-        public void SetDecodeCommandStatus(bool status)
-        {
-            this.decodeCommandStatus = status;
-        }
-
-        public bool GetDecodeCommandStatus()
-        {
-            return this.decodeCommandStatus;
-        }
-
-        public void SetData(byte[] data, byte dataLength)
-        {
-            if (dataLength <= App.QTY_DATA_BYTES)
+            switch (this.stateMachine)
             {
-                this.dataLength = dataLength;
-                Array.Copy(data, this.data, dataLength);
+                case 0:
+                    if (this.counterTimer1 >= (int) Delay._25ms)
+                    {
+                        this.dataPacketRx.Decode();
+                        this.counterTimer1 = 0;
+                    }
+                    this.stateMachine = 1;
+                    break;
+
+                case 1:
+                    if (this.dataPacketRx.isValid())
+                    {
+                        this.receivedCommand = this.dataPacketRx.GetCommand();
+                        byte receivedPayloadDataLength = this.dataPacketRx.GetPayloadDataLength();
+
+                        if (receivedPayloadDataLength > 0)
+                        {
+                            this.SetPayloadRxDataBytes(this.dataPacketRx.GetPayloadData(), receivedPayloadDataLength);
+                        }
+
+                        this.decodeReceivedCommand = true;
+                        this.dataPacketRx.Clear();
+                    }
+                    this.stateMachine = 2;
+                    break;
+
+                case 2:
+                    if (this.decodeReceivedCommand == true)
+                    {
+                        this.DecodeAndExecuteCommand();
+                        this.decodeReceivedCommand = false;
+                    }
+                    this.stateMachine = 0;
+                    break;
+
+                default:
+                    this.stateMachine = 0;
+                    break;
             }
         }
 
-        public int GetAdcValue()
+        public void SetPayloadRxDataBytes(byte[] data, byte dataLength)
         {
-            return this.adcValue;
-        }
-
-        public int GetPointsCounter()
-        {
-            return this.pointsCounter;
+            if (dataLength <= this.dataPacketRx.GetQtyPayloadRxDataBytes())
+            {
+                Array.Copy(data, this.payloadRxDataBytes, dataLength);
+            }
         }
 
         public void ResetPointsCounter()
@@ -137,6 +171,11 @@ namespace SerialPlotter.App
         public void SetLineChart(Chart lineChart)
         {
             this.lineChart = lineChart;
+        }
+
+        public void SetSerialPort(SerialPort serialPort)
+        {
+            this.serialPort = serialPort;
         }
     }
 }

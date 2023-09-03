@@ -15,30 +15,26 @@ namespace SerialPlotter
 {
     public partial class SerialPlotter : Form
     {
-        DataPacketRx dataPacketRx;
-
-        int counterTimer1 = 0;
-        int stateMachine = 0;
+        
         App.App serialPlotterApp;
 
         public SerialPlotter()
         {
             InitializeComponent();
 
-            dataPacketRx = new DataPacketRx(0xAA, 0x55);
-
             serialPlotterApp = new App.App();
             serialPlotterApp.SetLineChart(lineChart);
+            serialPlotterApp.SetSerialPort(serialPort);
 
-            InitializeComboBoxes();
-            SetItemsToDisconnectedMode();
+            this.InitializeComboBoxes();
+            this.SetItemsToDisconnectedMode();
             serialPlotterApp.ClearChart();
         }
 
         private void InitializeComboBoxes()
         {
-            SetAvailablePorts();
-            SetPredefinedItems();
+            this.SetAvailablePorts();
+            this.SetPredefinedItems();
         }
 
         private void SetAvailablePorts()
@@ -58,26 +54,25 @@ namespace SerialPlotter
 
         private void openBtn_Click(object sender, EventArgs e)
         {
-            dataPacketRx.Clear();
+            serialPlotterApp.ClearDataPacketRx();
 
             try
             {
                 if (comPortCb.Text != "")
                 {
-                    ConfigSerialPort();
+                    this.ConfigSerialPort();
                     serialPort.Open();
 
                     if (serialPort.IsOpen == true)
                     {
-                        SetItemsToConnectedMode();
-                        EnableTimer();
+                        this.SetItemsToConnectedMode();
+                        this.EnableTimer();
                     }
                     else
                     {
-                        SetItemsToDisconnectedMode();
-                        DisableTimer();
+                        this.SetItemsToDisconnectedMode();
+                        this.DisableTimer();
                     }
-
                 }
                 else
                 {
@@ -181,7 +176,7 @@ namespace SerialPlotter
 
         private void closeBtn_Click(object sender, EventArgs e)
         {
-            dataPacketRx.Clear();
+            serialPlotterApp.ClearDataPacketRx();
 
             if (serialPort.IsOpen)
             {
@@ -189,8 +184,8 @@ namespace SerialPlotter
 
                 if (serialPort.IsOpen == false)
                 {
-                    SetItemsToDisconnectedMode();
-                    DisableTimer();
+                    this.SetItemsToDisconnectedMode();
+                    this.DisableTimer();
                 }
             }
         }
@@ -219,7 +214,7 @@ namespace SerialPlotter
                     int receivedByte = serialPort.ReadByte();
                     if (receivedByte >= 0)
                     {
-                        dataPacketRx.Append((byte)receivedByte);
+                        serialPlotterApp.AppendNewByte(receivedByte);
                     }
                 }
             }
@@ -231,63 +226,22 @@ namespace SerialPlotter
 
         private void startBtn_Click(object sender, EventArgs e)
         {
-            serialPlotterApp.StartDataAquisitionSendCommand(serialPort);
+            serialPlotterApp.StartDataAquisitionSendCommand();
         }
 
         private void stopBtn_Click(object sender, EventArgs e)
         {
-            serialPlotterApp.StopDataAquisitionSendCommand(serialPort);
+            serialPlotterApp.StopDataAquisitionSendCommand();
         }
 
         private void timer_Tick(object sender, EventArgs e)
         {
-            counterTimer1++;
+            serialPlotterApp.IncrementCounterTimer1();
         }
 
         private void timer2_Tick(object sender, EventArgs e)
         {
-            switch (stateMachine)
-            {
-                case 0:
-                    if (counterTimer1 >= (int) Delay._25ms)
-                    {
-                        dataPacketRx.Decode();
-                        counterTimer1 = 0;
-                    }
-                    stateMachine = 1;
-                    break;
-
-                case 1:
-                    if (dataPacketRx.isValid())
-                    {
-                        byte receivedCmd = dataPacketRx.GetCommand();
-                        byte receivedPayloadDataLength = dataPacketRx.GetPayloadDataLength();
-
-                        if (receivedPayloadDataLength > 0)
-                        {
-                            serialPlotterApp.SetData(dataPacketRx.GetPayloadData(), receivedPayloadDataLength);
-                        }
-
-                        serialPlotterApp.SetCommand(receivedCmd);
-                        serialPlotterApp.SetDecodeCommandStatus(true);
-                        dataPacketRx.Clear();
-                    }
-                    stateMachine = 2;
-                    break;
-
-                case 2:
-                    if (serialPlotterApp.GetDecodeCommandStatus() == true)
-                    {
-                        serialPlotterApp.DecodeCommand();
-                        serialPlotterApp.SetDecodeCommandStatus(false);
-                    }
-                    stateMachine = 0;
-                    break;
-
-                default:
-                    stateMachine = 0;
-                    break;
-            }
+            serialPlotterApp.ExecuteStateMachine();
         }
 
         private void clearBtn_Click(object sender, EventArgs e)
