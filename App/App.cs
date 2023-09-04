@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms.DataVisualization.Charting;
 using SerialPlotter.DataPacket;
 using System.IO.Ports;
-
+using System.Windows.Forms;
+using System.IO;
 
 namespace SerialPlotter.App
 {
@@ -61,15 +62,14 @@ namespace SerialPlotter.App
             {
                 case ((byte) Commands.AdcReadValue):
                     this.adcValue = ((this.payloadRxDataBytes[0] << 8) + this.payloadRxDataBytes[1]);
+                    this.lineChart.Series[adcSerie].Points.AddXY(this.pointsCounter, this.adcValue);
+                    
                     this.pointsCounter++;
-
                     if (this.pointsCounter > 500)
                     {
                         this.pointsCounter = 0;
                         this.ClearChart();
                     }
-
-                    this.lineChart.Series[adcSerie].Points.AddXY(this.pointsCounter, this.adcValue);
                     break;
             }
         }
@@ -77,6 +77,63 @@ namespace SerialPlotter.App
         public void ClearDataPacketRx()
         {
             this.dataPacketRx.Clear();
+        }
+
+        public void SaveData()
+        {
+            int qty_of_data_points = this.lineChart.Series[adcSerie].Points.Count();
+
+            if (qty_of_data_points > 1)
+            {
+                int[] x_values = new int[qty_of_data_points - 1];
+                int[] y_values = new int[qty_of_data_points - 1];
+                string[] content = new string[qty_of_data_points];
+
+                content[0] = "x_values;y_values";
+
+                for (int i = 1; i < qty_of_data_points; i++)
+                {
+                    x_values[i - 1] = (int) this.lineChart.Series[adcSerie].Points[i].XValue;
+                    y_values[i - 1] = (int) this.lineChart.Series[adcSerie].Points[i].YValues[0];
+                    content[i] = x_values[i - 1].ToString() + ";" + y_values[i - 1].ToString();
+                }
+
+                SaveFileDialog saveFileDialog = new SaveFileDialog();
+                saveFileDialog.Title = "Select a directory to save de file";
+                saveFileDialog.InitialDirectory = @"C:\";
+                saveFileDialog.Filter = "CSV Files | *.csv";
+                saveFileDialog.DefaultExt = "csv";
+                saveFileDialog.RestoreDirectory = true;
+
+                if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        string pathName = saveFileDialog.FileName;
+
+                        if (File.Exists(pathName))
+                        {
+                            File.Delete(pathName);
+                        }
+
+                        FileStream fs = new FileStream(pathName, FileMode.OpenOrCreate);
+                        StreamWriter sw = new StreamWriter(fs);
+
+                        for (int i = 0; i < qty_of_data_points - 1; i++)
+                        {
+                            sw.WriteLine(content[i]);
+                        }
+
+                        sw.Flush();
+                        sw.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message);
+                    }
+                    
+                }
+            }
         }
 
         public void StartDataAquisitionSendCommand()
@@ -153,6 +210,16 @@ namespace SerialPlotter.App
                     this.stateMachine = 0;
                     break;
             }
+        }
+
+        public bool LineChartContainsPoints()
+        {
+            if (this.lineChart.Series[adcSerie].Points.Count() > 1)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         public void SetPayloadRxDataBytes(byte[] data, byte dataLength)

@@ -202,6 +202,7 @@ namespace SerialPlotter
             closeBtn.Enabled = false;
             startBtn.Enabled = false;
             stopBtn.Enabled = false;
+            saveDataBtn.Enabled = false;
             portStatusPb.Value = 0;
         }
 
@@ -226,12 +227,18 @@ namespace SerialPlotter
 
         private void startBtn_Click(object sender, EventArgs e)
         {
+            saveDataBtn.Enabled = false;
             serialPlotterApp.StartDataAquisitionSendCommand();
         }
 
         private void stopBtn_Click(object sender, EventArgs e)
         {
             serialPlotterApp.StopDataAquisitionSendCommand();
+
+            if (serialPlotterApp.LineChartContainsPoints() == true)
+            {
+                saveDataBtn.Enabled = true;
+            }
         }
 
         private void timer_Tick(object sender, EventArgs e)
@@ -248,6 +255,12 @@ namespace SerialPlotter
         {
             serialPlotterApp.ClearChart();
             serialPlotterApp.ResetPointsCounter();
+            saveDataBtn.Enabled = false;
+        }
+
+        private void saveDataBtn_Click(object sender, EventArgs e)
+        {
+            serialPlotterApp.SaveData();
         }
     }
 }
