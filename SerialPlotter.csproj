@@ -61,6 +61,7 @@
     <Compile Include="Main\Program.cs" />
     <Compile Include="DataPacket\Crc8.cs" />
     <Compile Include="DataPacket\DataPacketTx.cs" />
+    <Compile Include="Misc\Csv.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="GUI\SerialPlotter.resx">
       <DependentUpon>SerialPlotter.cs</DependentUpon>

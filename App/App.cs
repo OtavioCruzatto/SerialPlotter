@@ -6,8 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms.DataVisualization.Charting;
 using SerialPlotter.DataPacket;
 using System.IO.Ports;
-using System.Windows.Forms;
-using System.IO;
+using SerialPlotter.Misc;
 
 namespace SerialPlotter.App
 {
@@ -87,52 +86,19 @@ namespace SerialPlotter.App
             {
                 int[] x_values = new int[qty_of_data_points - 1];
                 int[] y_values = new int[qty_of_data_points - 1];
-                string[] content = new string[qty_of_data_points];
-
-                content[0] = "x_values;y_values";
 
                 for (int i = 1; i < qty_of_data_points; i++)
                 {
                     x_values[i - 1] = (int) this.lineChart.Series[adcSerie].Points[i].XValue;
                     y_values[i - 1] = (int) this.lineChart.Series[adcSerie].Points[i].YValues[0];
-                    content[i] = x_values[i - 1].ToString() + ";" + y_values[i - 1].ToString();
                 }
 
-                SaveFileDialog saveFileDialog = new SaveFileDialog();
-                saveFileDialog.Title = "Select a directory to save de file";
-                saveFileDialog.InitialDirectory = @"C:\";
-                saveFileDialog.Filter = "CSV Files | *.csv";
-                saveFileDialog.DefaultExt = "csv";
-                saveFileDialog.RestoreDirectory = true;
-
-                if (saveFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    try
-                    {
-                        string pathName = saveFileDialog.FileName;
-
-                        if (File.Exists(pathName))
-                        {
-                            File.Delete(pathName);
-                        }
-
-                        FileStream fs = new FileStream(pathName, FileMode.OpenOrCreate);
-                        StreamWriter sw = new StreamWriter(fs);
-
-                        for (int i = 0; i < qty_of_data_points - 1; i++)
-                        {
-                            sw.WriteLine(content[i]);
-                        }
-
-                        sw.Flush();
-                        sw.Close();
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show(ex.Message);
-                    }
-                    
-                }
+                Csv csv = new Csv();
+                csv.SetColumnData(x_values, "x_values");
+                csv.SetColumnData(y_values, "y_values");
+                csv.PrepareData();
+                csv.SaveDataToFile();
+                csv.Clear();
             }
         }
 
