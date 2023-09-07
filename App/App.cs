@@ -7,11 +7,14 @@ using System.Windows.Forms.DataVisualization.Charting;
 using SerialPlotter.DataPacket;
 using System.IO.Ports;
 using SerialPlotter.Misc;
+using System.Windows.Forms;
 
 namespace SerialPlotter.App
 {
     public class App
     {
+        static private int MAX_QTY_POINTS_IN_LINE_CHART = 500;
+
         private byte receivedCommand;
         private bool decodeReceivedCommand;
 
@@ -61,10 +64,10 @@ namespace SerialPlotter.App
             {
                 case ((byte) Commands.AdcReadValue):
                     this.adcValue = ((this.payloadRxDataBytes[0] << 8) + this.payloadRxDataBytes[1]);
-                    this.lineChart.Series[adcSerie].Points.AddXY(this.pointsCounter, this.adcValue);
+                    this.lineChart.Series[this.adcSerie].Points.AddXY(this.pointsCounter, this.adcValue);
                     
                     this.pointsCounter++;
-                    if (this.pointsCounter > 500)
+                    if (this.pointsCounter > MAX_QTY_POINTS_IN_LINE_CHART)
                     {
                         this.pointsCounter = 0;
                         this.ClearChart();
@@ -80,7 +83,7 @@ namespace SerialPlotter.App
 
         public void SaveData()
         {
-            int qty_of_data_points = this.lineChart.Series[adcSerie].Points.Count();
+            int qty_of_data_points = this.lineChart.Series[this.adcSerie].Points.Count();
 
             if (qty_of_data_points > 1)
             {
@@ -89,8 +92,8 @@ namespace SerialPlotter.App
 
                 for (int i = 1; i < qty_of_data_points; i++)
                 {
-                    x_values[i - 1] = (int) this.lineChart.Series[adcSerie].Points[i].XValue;
-                    y_values[i - 1] = (int) this.lineChart.Series[adcSerie].Points[i].YValues[0];
+                    x_values[i - 1] = (int) this.lineChart.Series[this.adcSerie].Points[i].XValue;
+                    y_values[i - 1] = (int) this.lineChart.Series[this.adcSerie].Points[i].YValues[0];
                 }
 
                 Csv csv = new Csv();
@@ -100,6 +103,40 @@ namespace SerialPlotter.App
                 csv.SaveDataToFile();
                 csv.Clear();
             }
+        }
+
+        public void LoadData()
+        {
+            Csv csv = new Csv();
+            List<int[]> data = new List<int[]>();
+            int qtyOfRows = 0;
+            int qtyOfColumns = 0;
+
+            data = csv.GetDataColumns();
+
+            if (csv.GetDataReady() == true)
+            {
+                qtyOfColumns = csv.GetQtyOfColumns();
+                qtyOfRows = csv.GetQtyOfRows();
+
+                int[] x_values = new int[qtyOfRows];
+                int[] y_values = new int[qtyOfColumns];
+
+                x_values = data[0];
+                y_values = data[1];
+
+                this.ClearChart();
+
+                for (int i = 0; i < x_values.Length; i++)
+                {
+                    this.lineChart.Series[this.adcSerie].Points.AddXY(x_values[i], y_values[i]);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Load error");
+            }
+            
         }
 
         public void StartDataAquisitionSendCommand()
@@ -124,8 +161,9 @@ namespace SerialPlotter.App
 
         public void ClearChart()
         {
-            lineChart.Series[adcSerie].Points.Clear();
-            lineChart.Series[adcSerie].Points.AddXY(-1, 0);
+            this.lineChart.Series[this.adcSerie].Points.Clear();
+            this.lineChart.Series[this.adcSerie].Points.AddXY(-1, 0);
+            this.ResetPointsCounter();
         }
 
         public void IncrementCounterTimer1()
@@ -180,7 +218,7 @@ namespace SerialPlotter.App
 
         public bool LineChartContainsPoints()
         {
-            if (this.lineChart.Series[adcSerie].Points.Count() > 1)
+            if (this.lineChart.Series[this.adcSerie].Points.Count() > 1)
             {
                 return true;
             }
