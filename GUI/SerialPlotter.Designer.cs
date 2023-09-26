@@ -563,6 +563,7 @@
             title1.Name = "Title1";
             title1.Text = "Line Chart";
             title1.TextOrientation = System.Windows.Forms.DataVisualization.Charting.TextOrientation.Horizontal;
+            title1.Visible = false;
             this.lineChart.Titles.Add(title1);
             // 
             // serialPort
