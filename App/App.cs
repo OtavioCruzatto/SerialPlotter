@@ -13,8 +13,6 @@ namespace SerialPlotter.App
 {
     public class App
     {
-        static private int MAX_QTY_POINTS_IN_LINE_CHART = 500;
-
         private byte receivedCommand;
         private bool decodeReceivedCommand;
 
@@ -33,7 +31,12 @@ namespace SerialPlotter.App
         private byte[] payloadTxDataBytes;
         private byte[] payloadRxDataBytes;
 
-        public App()
+        private int lineChartMinX;
+        private int lineChartMaxX;
+        private int lineChartMinY;
+        private int lineChartMaxY;
+
+        public App(Chart lineChart, SerialPort serialPort)
         {
             this.receivedCommand = 0;
             this.decodeReceivedCommand = false;
@@ -42,8 +45,7 @@ namespace SerialPlotter.App
             this.stateMachine = 0;
 
             this.adcValue = 0;
-            this.pointsCounter = 0;
-
+            
             this.dataPacketTx = new DataPacketTx(0xAA, 0x55);
             this.dataPacketRx = new DataPacketRx(0xAA, 0x55);
             this.payloadTxDataBytes = new byte[this.dataPacketTx.GetQtyPayloadTxDataBytes()];
@@ -51,6 +53,16 @@ namespace SerialPlotter.App
 
             Array.Clear(this.payloadTxDataBytes, 0, this.dataPacketTx.GetQtyPayloadTxDataBytes());
             Array.Clear(this.payloadRxDataBytes, 0, this.dataPacketRx.GetQtyPayloadRxDataBytes());
+
+            this.SetLineChart(lineChart);
+            this.SetSerialPort(serialPort);
+
+            this.lineChartMinX = (int) this.lineChart.ChartAreas[0].AxisX.Minimum;
+            this.lineChartMaxX = (int) this.lineChart.ChartAreas[0].AxisX.Maximum;
+            this.lineChartMinY = (int) this.lineChart.ChartAreas[0].AxisY.Minimum;
+            this.lineChartMaxY = (int) this.lineChart.ChartAreas[0].AxisY.Maximum;
+
+            this.pointsCounter = this.lineChartMinX;
         }
 
         public void AppendNewByte(int newByte)
@@ -67,9 +79,9 @@ namespace SerialPlotter.App
                     this.lineChart.Series[this.adcSerie].Points.AddXY(this.pointsCounter, this.adcValue);
                     
                     this.pointsCounter++;
-                    if (this.pointsCounter > MAX_QTY_POINTS_IN_LINE_CHART)
+                    if (this.pointsCounter > this.lineChartMaxX)
                     {
-                        this.pointsCounter = 0;
+                        this.pointsCounter = this.lineChartMinX;
                         this.ClearChart();
                     }
                     break;
@@ -162,8 +174,32 @@ namespace SerialPlotter.App
         public void ClearChart()
         {
             this.lineChart.Series[this.adcSerie].Points.Clear();
-            this.lineChart.Series[this.adcSerie].Points.AddXY(-1, 0);
+            this.lineChart.Series[this.adcSerie].Points.AddXY(this.lineChartMinX - 1, this.lineChartMinY);
             this.ResetPointsCounter();
+        }
+
+        public void ResizeChartAxisX(int xMin, int xMax)
+        {
+            if (xMax > xMin)
+            {
+                this.lineChart.ChartAreas[0].AxisX.Minimum = xMin;
+                this.lineChart.ChartAreas[0].AxisX.Maximum = xMax;
+            }
+
+            this.lineChartMinX = (int)lineChart.ChartAreas[0].AxisX.Minimum;
+            this.lineChartMaxX = (int)lineChart.ChartAreas[0].AxisX.Maximum;
+        }
+
+        public void ResizeChartAxisY(int yMin, int yMax)
+        {
+            if (yMax > yMin)
+            {
+                this.lineChart.ChartAreas[0].AxisY.Minimum = yMin;
+                this.lineChart.ChartAreas[0].AxisY.Maximum = yMax;
+            }
+
+            this.lineChartMinY = (int)lineChart.ChartAreas[0].AxisY.Minimum;
+            this.lineChartMaxY = (int)lineChart.ChartAreas[0].AxisY.Maximum;
         }
 
         public void IncrementCounterTimer1()
@@ -236,7 +272,7 @@ namespace SerialPlotter.App
 
         public void ResetPointsCounter()
         {
-            this.pointsCounter = 0;
+            this.pointsCounter = this.lineChartMinX;
         }
 
         public void SetLineChart(Chart lineChart)

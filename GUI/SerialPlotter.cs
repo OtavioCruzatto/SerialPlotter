@@ -22,9 +22,7 @@ namespace SerialPlotter
         {
             InitializeComponent();
 
-            serialPlotterApp = new App.App();
-            serialPlotterApp.SetLineChart(lineChart);
-            serialPlotterApp.SetSerialPort(serialPort);
+            serialPlotterApp = new App.App(lineChart, serialPort);
 
             this.InitializeComboBoxes();
             this.SetItemsToDisconnectedMode();
@@ -275,5 +273,61 @@ namespace SerialPlotter
             startBtn.Enabled = false;
             serialPlotterApp.LoadData();
         }
+
+        private void resizeBtn_Click(object sender, EventArgs e)
+        {
+            string xMinStr = minXTxtBox.Text.Trim();
+            string xMaxStr = maxXTxtBox.Text.Trim();
+            string yMinStr = minYTxtBox.Text.Trim();
+            string yMaxStr = maxYTxtBox.Text.Trim();
+
+            int xMinInt = 0;
+            int xMaxInt = 0;
+            int yMinInt = 0;
+            int yMaxInt = 0;
+
+            if (!String.IsNullOrEmpty(xMinStr) && !String.IsNullOrEmpty(xMaxStr))
+            {
+                if (int.TryParse(xMinStr, out int xMinResult))
+                {
+                    if (Math.Abs(xMinResult) <= 5000)
+                    {
+                        xMinInt = xMinResult;
+                    }
+                }
+
+                if (int.TryParse(xMaxStr, out int xMaxResult))
+                {
+                    if (Math.Abs(xMaxResult) <= 5000)
+                    {
+                        xMaxInt = xMaxResult;
+                    }
+                }
+
+                serialPlotterApp.ResizeChartAxisX(xMinInt, xMaxInt);
+            }
+
+            if (!String.IsNullOrEmpty(yMinStr) && !String.IsNullOrEmpty(yMaxStr))
+            {
+                if (int.TryParse(yMinStr, out int yMinResult))
+                {
+                    if (Math.Abs(yMinResult) <= 5000)
+                    {
+                        yMinInt = yMinResult;
+                    }
+                }
+
+                if (int.TryParse(yMaxStr, out int yMaxResult))
+                {
+                    if (Math.Abs(yMaxResult) <= 5000)
+                    {
+                        yMaxInt = yMaxResult;
+                    }
+                }
+
+                serialPlotterApp.ResizeChartAxisY(yMinInt, yMaxInt);
+            }
+        }
+
     }
 }
