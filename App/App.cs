@@ -182,24 +182,64 @@ namespace SerialPlotter.App
         {
             if (xMax > xMin)
             {
-                this.lineChart.ChartAreas[0].AxisX.Minimum = xMin;
-                this.lineChart.ChartAreas[0].AxisX.Maximum = xMax;
-            }
+                double interval = (xMax - xMin) / 20;
+                if (interval >= 1)
+                {
+                    this.lineChart.ChartAreas[0].AxisX.Minimum = xMin;
+                    this.lineChart.ChartAreas[0].AxisX.Maximum = xMax;
 
-            this.lineChartMinX = (int)lineChart.ChartAreas[0].AxisX.Minimum;
-            this.lineChartMaxX = (int)lineChart.ChartAreas[0].AxisX.Maximum;
+                    this.lineChart.ChartAreas[0].AxisX.MinorGrid.Interval = interval;
+                    this.lineChart.ChartAreas[0].AxisX.MinorTickMark.Interval = interval;
+                    this.lineChart.ChartAreas[0].AxisX.MajorGrid.Interval = interval;
+                    this.lineChart.ChartAreas[0].AxisX.MajorTickMark.Interval = interval;
+                    this.lineChart.ChartAreas[0].AxisX.Interval = interval;
+
+                    this.lineChartMinX = (int)lineChart.ChartAreas[0].AxisX.Minimum;
+                    this.lineChartMaxX = (int)lineChart.ChartAreas[0].AxisX.Maximum;
+
+                    this.ClearChart();
+                }
+                else
+                {
+                    MessageBox.Show("Max-X - Min-X >= 20", "Invalid values...", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Max-X shall be greater than Min-X", "Invalid values...", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         public void ResizeChartAxisY(int yMin, int yMax)
         {
             if (yMax > yMin)
             {
-                this.lineChart.ChartAreas[0].AxisY.Minimum = yMin;
-                this.lineChart.ChartAreas[0].AxisY.Maximum = yMax;
-            }
+                double interval = (yMax - yMin) / 10;
+                if (interval >= 1)
+                {
+                    this.lineChart.ChartAreas[0].AxisY.Minimum = yMin;
+                    this.lineChart.ChartAreas[0].AxisY.Maximum = yMax;
 
-            this.lineChartMinY = (int)lineChart.ChartAreas[0].AxisY.Minimum;
-            this.lineChartMaxY = (int)lineChart.ChartAreas[0].AxisY.Maximum;
+                    this.lineChart.ChartAreas[0].AxisY.MinorGrid.Interval = interval;
+                    this.lineChart.ChartAreas[0].AxisY.MinorTickMark.Interval = interval;
+                    this.lineChart.ChartAreas[0].AxisY.MajorGrid.Interval = interval;
+                    this.lineChart.ChartAreas[0].AxisY.MajorTickMark.Interval = interval;
+                    this.lineChart.ChartAreas[0].AxisY.Interval = interval;
+
+                    this.lineChartMinY = (int)lineChart.ChartAreas[0].AxisY.Minimum;
+                    this.lineChartMaxY = (int)lineChart.ChartAreas[0].AxisY.Maximum;
+
+                    this.ClearChart();
+                }
+                else
+                {
+                    MessageBox.Show("Max-Y - Min-Y >= 10", "Invalid values...", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Max-Y shall be greater than Min-Y", "Invalid values...", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         public void IncrementCounterTimer1()
